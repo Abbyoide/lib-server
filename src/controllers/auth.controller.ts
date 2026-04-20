@@ -3,10 +3,6 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { User } from "../models/user.js";
 
-export const testAuth = (req: Request, res: Response) => {
-  res.send("auth is ok");
-};
-
 const getSecret = () => {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
@@ -97,8 +93,6 @@ export const login = async (req: Request, res: Response) => {
         id: user._id,
         email: user.email,
         username: user.username,
-        firstName: user.firstName,
-        lastName: user.lastName,
       },
     });
   } catch (err: any) {
