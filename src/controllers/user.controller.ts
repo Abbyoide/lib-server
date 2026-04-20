@@ -125,7 +125,7 @@ export const addToWishlist = async (req: Request, res: Response) => {
       book = existing;
     } else {
       const response = await fetch(
-        `https://openlibrary.org/works/${openLibraryKey}.json`,
+        `https://openlibrary.org/${openLibraryKey}.json`,
       );
 
       const data = await response.json();
