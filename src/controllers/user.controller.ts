@@ -24,6 +24,7 @@ async function upsertBook(bookData: {
 export const getMe = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id;
+
     const user = await User.findById(userId)
       .select("-password")
       .populate("borrowedBooks")
@@ -40,6 +41,7 @@ export const getMe = async (req: Request, res: Response) => {
 export const loanBook = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id;
+
     const {
       openLibraryKey,
       title,
@@ -59,9 +61,7 @@ export const loanBook = async (req: Request, res: Response) => {
     if (!user) return res.status(404).json({ message: "User not found" });
 
     if (user.borrowedBooks.length >= LOAN_LIMIT) {
-      return res
-        .status(400)
-        .json({ message: `Loan limit reached (${LOAN_LIMIT} books)` });
+      return res.status(400).json({ message: "Loan limit reached" });
     }
 
     const book = await upsertBook({
@@ -104,38 +104,39 @@ export const returnBook = async (req: Request, res: Response) => {
 export const addToWishlist = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id;
-    const {
-      openLibraryKey,
-      title,
-      authors,
-      coverId,
-      firstPublishYear,
-      subjects,
-    } = req.body;
+    const { openLibraryKey } = req.body;
 
-    if (!openLibraryKey || !title) {
-      return res
-        .status(400)
-        .json({ message: "openLibraryKey and title are required" });
+    if (!openLibraryKey) {
+      return res.status(400).json({ message: "openLibraryKey is required" });
     }
 
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: "User not found" });
 
     if (user.wishlist.length >= WISHLIST_LIMIT) {
-      return res
-        .status(400)
-        .json({ message: `Wishlist limit reached (${WISHLIST_LIMIT} books)` });
+      return res.status(400).json({ message: "Wishlist limit reached" });
     }
 
-    const book = await upsertBook({
-      openLibraryKey,
-      title,
-      authors,
-      coverId,
-      firstPublishYear,
-      subjects,
-    });
+    const existing = await Book.findOne({ openLibraryKey });
+
+    let book;
+
+    if (existing) {
+      book = existing;
+    } else {
+      const response = await fetch(
+        `https://openlibrary.org/works/${openLibraryKey}.json`,
+      );
+
+      const data = await response.json();
+
+      book = await upsertBook({
+        openLibraryKey,
+        title: data.title,
+        authors: data.authors?.map((a: any) => a.name) ?? [],
+        subjects: data.subjects ?? [],
+      });
+    }
 
     if (user.wishlist.includes(book._id as any)) {
       return res.status(400).json({ message: "Book already in wishlist" });
