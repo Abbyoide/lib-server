@@ -5,7 +5,7 @@ export const getBooks = async (req: Request, res: Response) => {
 
   try {
     const response = await fetch(
-      `https://openlibrary.org/search.json?q=${q}&limit=12`,
+      `https://openlibrary.org/search.json?q=${q}&limit=120`,
     );
 
     if (!response.ok) {
