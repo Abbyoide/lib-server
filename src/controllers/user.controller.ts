@@ -102,10 +102,19 @@ export const returnBook = async (req: Request, res: Response) => {
 export const addToWishlist = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id;
-    const { openLibraryKey } = req.body;
+    const {
+      openLibraryKey,
+      title,
+      authors,
+      coverId,
+      firstPublishYear,
+      subjects,
+    } = req.body;
 
-    if (!openLibraryKey) {
-      return res.status(400).json({ message: "openLibraryKey is required" });
+    if (!openLibraryKey || !title) {
+      return res
+        .status(400)
+        .json({ message: "openLibraryKey and title are required" });
     }
 
     const user = await User.findById(userId);
@@ -115,21 +124,14 @@ export const addToWishlist = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Wishlist limit reached" });
     }
 
-    let book = await Book.findOne({ openLibraryKey });
-
-    if (!book) {
-      const response = await fetch(
-        `https://openlibrary.org/works/${openLibraryKey}.json`,
-      );
-      const data = await response.json();
-
-      book = await upsertBook({
-        openLibraryKey,
-        title: data.title ?? openLibraryKey,
-        authors: data.authors?.map((a: any) => a.name) ?? [],
-        subjects: data.subjects ?? [],
-      });
-    }
+    const book = await upsertBook({
+      openLibraryKey,
+      title,
+      authors,
+      coverId,
+      firstPublishYear,
+      subjects,
+    });
 
     if (user.wishlist.includes(book._id as any)) {
       return res.status(400).json({ message: "Book already in wishlist" });

@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { Book } from "../models/book.js";
+import { filterValidBooks } from "../validators/book.validator.js";
 
 export const createBook = async (req: Request, res: Response) => {
   try {
@@ -49,23 +50,18 @@ export const getBooks = async (req: Request, res: Response) => {
     if (category) query = `${query} ${category}`;
 
     const response = await fetch(
-      `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=1000`,
+      `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=1000&sort=editions`,
     );
 
     if (!response.ok) {
-      return res.status(500).json({ message: "Error on external API" });
+      return res.status(200).json([]);
     }
 
     const data = await response.json();
-    const validBooks = data.docs.filter(
-      (book: any) =>
-        book.title &&
-        typeof book.title === "string" &&
-        !book.title.toLowerCase().includes("undefined")
-    );
+    const validBooks = filterValidBooks(data.docs);
     res.json(validBooks);
   } catch (error) {
-    res.status(500).json({ message: "Error to get books" });
+    res.status(200).json([]);
   }
 };
 
