@@ -46,26 +46,21 @@ export const getBooks = async (req: Request, res: Response) => {
   const { q, category } = req.query;
 
   try {
-    let query = q as string;
-    if (category) query = `${query} ${category}`;
+    const query = q as string;
+    const params = new URLSearchParams({ q: query, limit: "100" });
+
+    if (category) {
+      params.set("q", `${query} subject:${category}`);
+    }
 
     const response = await fetch(
-      `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=1000`,
+      `https://openlibrary.org/search.json?${params.toString()}`,
     );
 
-    if (!response.ok) {
-      return res.status(200).json([]);
-    }
+    if (!response.ok) return res.status(200).json([]);
 
     const data = await response.json();
     const validBooks = filterValidBooks(data.docs);
-    
-    // Manual sort by popularity (edition_count) so we don't break OpenLibrary's relevance search
-    validBooks.sort((a, b) => {
-      const countA = (a.edition_count as number) || 0;
-      const countB = (b.edition_count as number) || 0;
-      return countB - countA;
-    });
 
     res.json(validBooks);
   } catch (error) {
