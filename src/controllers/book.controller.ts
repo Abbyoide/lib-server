@@ -49,7 +49,7 @@ export const getBooks = async (req: Request, res: Response) => {
     if (category) query = `${query} ${category}`;
 
     const response = await fetch(
-      `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=24`,
+      `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=1000`,
     );
 
     if (!response.ok) {
