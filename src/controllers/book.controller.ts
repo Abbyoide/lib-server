@@ -57,7 +57,13 @@ export const getBooks = async (req: Request, res: Response) => {
     }
 
     const data = await response.json();
-    res.json(data.docs);
+    const validBooks = data.docs.filter(
+      (book: any) =>
+        book.title &&
+        typeof book.title === "string" &&
+        !book.title.toLowerCase().includes("undefined")
+    );
+    res.json(validBooks);
   } catch (error) {
     res.status(500).json({ message: "Error to get books" });
   }
