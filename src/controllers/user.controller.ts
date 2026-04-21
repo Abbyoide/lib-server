@@ -2,8 +2,8 @@ import { Request, Response } from "express";
 import { User } from "../models/user.js";
 import { Book } from "../models/book.js";
 
-const LOAN_LIMIT = 30;
-const WISHLIST_LIMIT = 10;
+const LOAN_LIMIT = 10;
+const WISHLIST_LIMIT = 20;
 
 async function upsertBook(bookData: {
   openLibraryKey: string;
@@ -16,7 +16,7 @@ async function upsertBook(bookData: {
   const book = await Book.findOneAndUpdate(
     { openLibraryKey: bookData.openLibraryKey },
     { $set: bookData },
-    { upsert: true, new: true },
+    { upsert: true, returnDocument: "after" },
   );
   return book;
 }
@@ -91,9 +91,7 @@ export const returnBook = async (req: Request, res: Response) => {
     const userId = (req as any).user.id;
     const { bookId } = req.params;
 
-    await User.findByIdAndUpdate(userId, {
-      $pull: { borrowedBooks: bookId },
-    });
+    await User.findByIdAndUpdate(userId, { $pull: { borrowedBooks: bookId } });
 
     res.json({ message: "Book returned successfully" });
   } catch (err: any) {
@@ -117,22 +115,17 @@ export const addToWishlist = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Wishlist limit reached" });
     }
 
-    const existing = await Book.findOne({ openLibraryKey });
+    let book = await Book.findOne({ openLibraryKey });
 
-    let book;
-
-    if (existing) {
-      book = existing;
-    } else {
+    if (!book) {
       const response = await fetch(
         `https://openlibrary.org/works/${openLibraryKey}.json`,
       );
-
       const data = await response.json();
 
       book = await upsertBook({
         openLibraryKey,
-        title: data.title,
+        title: data.title ?? openLibraryKey,
         authors: data.authors?.map((a: any) => a.name) ?? [],
         subjects: data.subjects ?? [],
       });
@@ -156,9 +149,7 @@ export const removeFromWishlist = async (req: Request, res: Response) => {
     const userId = (req as any).user.id;
     const { bookId } = req.params;
 
-    await User.findByIdAndUpdate(userId, {
-      $pull: { wishlist: bookId },
-    });
+    await User.findByIdAndUpdate(userId, { $pull: { wishlist: bookId } });
 
     res.json({ message: "Removed from wishlist" });
   } catch (err: any) {

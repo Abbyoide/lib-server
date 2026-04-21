@@ -5,14 +5,13 @@ import { User } from "../models/user.js";
 
 const getSecret = () => {
   const secret = process.env.JWT_SECRET;
-  if (!secret) {
+  if (!secret)
     throw new Error("JWT_SECRET is missing in environment variables");
-  }
   return secret;
 };
 
 export const register = async (req: Request, res: Response) => {
-  const { firstName, lastName, username, email, password } = req.body;
+  const { username, email, password } = req.body;
 
   try {
     const existingEmail = await User.findOne({ email });
@@ -27,23 +26,27 @@ export const register = async (req: Request, res: Response) => {
 
     const hashed = await bcrypt.hash(password, 10);
 
-    const user = new User({
-      firstName,
-      lastName,
-      username,
-      email,
-      password: hashed,
-    });
-
+    const user = new User({ username, email, password: hashed });
     await user.save();
 
-    res.json({ message: "User registered successfully" });
-  } catch (err: any) {
-    console.error("REGISTER ERROR:", err);
-    res.status(500).json({
-      message: "Server error",
-      error: err?.message,
+    const SECRET = getSecret();
+
+    const token = jwt.sign(
+      { id: user._id, email: user.email, username: user.username },
+      SECRET,
+      { expiresIn: "1h" },
+    );
+
+    return res.status(201).json({
+      token,
+      user: {
+        id: user._id,
+        email: user.email,
+        username: user.username,
+      },
     });
+  } catch (err: any) {
+    res.status(500).json({ message: "Server error", error: err?.message });
   }
 };
 
@@ -51,39 +54,32 @@ export const login = async (req: Request, res: Response) => {
   const { identifier, email, username, password } = req.body;
 
   try {
-    console.log("LOGIN BODY:", req.body);
-
     const loginValue = identifier || email || username;
 
     if (!loginValue || !password) {
-      return res.status(400).json({
-        message: "Email/username and password are required",
-      });
+      return res
+        .status(400)
+        .json({ message: "Email/username and password are required" });
     }
 
     const user = await User.findOne({
       $or: [{ email: loginValue }, { username: loginValue }],
     });
 
-    console.log("USER FOUND:", user);
-
     if (!user || !user.password) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
     const isValid = await bcrypt.compare(password, user.password);
-
     if (!isValid) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
+    const SECRET = getSecret();
+
     const token = jwt.sign(
-      {
-        id: user._id,
-        email: user.email,
-        username: user.username,
-      },
-      getSecret(),
+      { id: user._id, email: user.email, username: user.username },
+      SECRET,
       { expiresIn: "1h" },
     );
 
@@ -96,11 +92,8 @@ export const login = async (req: Request, res: Response) => {
       },
     });
   } catch (err: any) {
-    console.error("LOGIN ERROR:", err);
-
-    return res.status(500).json({
-      message: "Server error",
-      error: err?.message || err,
-    });
+    return res
+      .status(500)
+      .json({ message: "Server error", error: err?.message });
   }
 };
